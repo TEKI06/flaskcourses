@@ -1,48 +1,43 @@
 pipeline {
     agent any
-
+    
     stages {
         stage('Checkout') {
             steps {
-                checkout([$class: 'GitSCM', branches: [[name: 'main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/TEKI06/flaskcourses.git']]])
+                // Récupération du code source depuis un référentiel Git
+                git 'https://github.com/votre-repo.git'
             }
         }
-        stage('Install dependencies') {
+        
+        stage('Build') {
             steps {
-                git branch: 'main', url: 'https://github.com/TEKI06/flaskcourses.git'
-                sh 'pip3 install -r requirements.txt'
-            }
-        }
-        stage('Install corverage') {
-            steps {
-                sh 'pip3 install coverage'
-            }
-        }
-        stage('Run tests') {
-            steps {
-                sh 'python3 -m coverage run --source=./ -m pytest'
-                sh 'python3 -m coverage xml'
-            }
-        }
-
-        stage('SonarQube analysis') {
-            steps {
+                // Construction de l'image Docker
                 script {
-                    def scannerHome = tool 'SonarQube Scanner';
-                    withSonarQubeEnv() {
-                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=flaskcourses"
+                    docker.withRegistry('https://votre-registry', 'credentials-id') {
+                        def image = docker.build('votre-image:latest', '-f Dockerfile .')
+                        image.push()
                     }
                 }
             }
         }
-        stage('Create artifact') {
+        
+        stage('Test') {
             steps {
-                sh 'zip -r my_artifact.zip .'
+                // Exécution des tests
+                sh 'python -m unittest discover tests'
             }
         }
-        stage('Archive artifact') {
+        
+        stage('Deploy') {
             steps {
-                archiveArtifacts artifacts: 'my_artifact.zip', fingerprint: true
+                // Déploiement sur Kubernetes
+                script {
+                    kubernetesDeploy(
+                        configs: 'chemin-vers-vos-fichiers-kubernetes',
+                        kubeconfigId: 'votre-kubeconfig-id',
+                        kubeconfigContextName: 'votre-contexte-kubernetes'
+                    )
+                }
             }
         }
     }
